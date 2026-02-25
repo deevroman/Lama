@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "loader.h"
+#include "interpreter.h"
+
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s file.bc\n", argv[0]);
+    return 1;
+  }
+
+  DEBUG_LOG("Loading bytecode from: %s\n", argv[1]);
+
+  bytefile *bytecode_file = load_bytecode_file(argv[1]);
+  if (!bytecode_file) {
+    fprintf(stderr, "Failed to load bytecode\n");
+    return 1;
+  }
+
+  DEBUG_LOG("Calling interpret_bytecode...\n");
+  interpret_bytecode(bytecode_file);
+  DEBUG_LOG("interpret_bytecode finished\n");
+
+  free(bytecode_file->global_ptr);
+  free(bytecode_file);
+
+  return 0;
+}

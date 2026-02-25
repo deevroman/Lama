@@ -1,0 +1,46 @@
+name: tests in docker
+on:
+  push:
+
+env:
+  OPAMROOT: /home/user/.opam
+  OPAMCONFIRMLEVEL: unsafe-yes
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: trickyfoxy/lama
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - run: opam --version
+      - run: whoami
+      - run: opam exec -- ocamlopt --version
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build runtime
+        working-directory: runtime
+        run: make
+
+      - name: build Lamac
+        working-directory: src
+        run: eval $(opam env --switch=lama --set-switch) && make
+
+      - name: build interpreter
+        working-directory: interp
+        run: |
+          cmake . -B cmake-build-debug && cmake --build ./cmake-build-debug
+
+      - name: run regression tests
+        working-directory: interp
+        run: ./run-regression-tests.sh
+
+      - name: run perf tests
+        working-directory: interp
+        run: ./run-performance-test.sh

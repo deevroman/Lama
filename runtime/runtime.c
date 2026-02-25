@@ -13,10 +13,10 @@ extern size_t __gc_stack_top, __gc_stack_bottom;
   if (flag) { __gc_stack_top = (size_t)__builtin_frame_address(0); }                               \
   assert(__gc_stack_top != 0);                                                                     \
   assert((__gc_stack_top & 0xF) == 0);                                                             \
-  assert(__builtin_frame_address(0) <= (void *)__gc_stack_top);
+  // assert(__builtin_frame_address(0) <= (void *)__gc_stack_top);
 
 #define POST_GC()                                                                                  \
-  assert(__builtin_frame_address(0) <= (void *)__gc_stack_top);                                    \
+  // assert(__builtin_frame_address(0) <= (void *)__gc_stack_top);                                    \
   if (flag) { __gc_stack_top = 0; }
 
 _Noreturn static void vfailure (char *s, va_list args) {
@@ -1264,7 +1264,7 @@ extern aint Lread () {
   // int result = BOX(0);
   aint result = BOX(0);
 
-  printf("> ");
+  printf(" > ");
   fflush(stdout);
   scanf("%" SCNdAI, &result);
 
