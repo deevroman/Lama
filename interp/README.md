@@ -22,6 +22,7 @@ docker run --platform=linux/amd64 --rm -v $PWD:/lama -it -w /lama trickyfoxy/lam
 После этого можно запустить сборку
 
 ```bash
+eval $(opam env --switch=lama --set-switch)
 cd ../runtime && make && cd -
 cd ../src && make && cd -
 ```
