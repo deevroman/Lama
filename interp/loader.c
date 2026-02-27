@@ -33,6 +33,7 @@ bytefile* load_bytecode_file(const char* filename)
     }
 
     const size_t size = (size_t)end_pos;
+    DEBUG_LOG("[PARSE] size=%zu\n", size);
     if (fseek(f, 0, SEEK_SET) != 0)
     {
         perror("Failed to seek file\n");
@@ -40,11 +41,18 @@ bytefile* load_bytecode_file(const char* filename)
         return NULL;
     }
 
+    if (size <= sizeof(bytefile_data))
+    {
+        ERROR_LOG("Invalid bytecode file: too small to contain header\n");
+        fclose(f);
+        return NULL;
+    }
+
     bytefile* file = malloc(sizeof(bytefile));
-    file->data = malloc(sizeof(bytefile_data) + size);
+    file->data = malloc(size);
     if (!file->data)
     {
-        ERROR_LOG("Failed to alloc %zu\n", sizeof(bytefile_data) + size);
+        ERROR_LOG("Failed to alloc %zu\n", size);
         fclose(f);
         return NULL;
     }
@@ -58,21 +66,15 @@ bytefile* load_bytecode_file(const char* filename)
     }
     fclose(f);
 
-    if (size < sizeof(file->data->stringtab_size) + sizeof(file->data->global_area_size) + sizeof(file->data->public_symbols_number))
-    {
-        ERROR_LOG("Invalid bytecode size: %zu\n", size);
-        free(file->data);
-        return NULL;
-    }
-
     DEBUG_LOG("[PARSE] Read %zu bytes\n", read_bytes);
     DEBUG_LOG("[PARSE] stringtab_size=%d (0x%x)\n", file->data->stringtab_size, file->data->stringtab_size);
     DEBUG_LOG("[PARSE] global_area_size=%d (0x%x)\n", file->data->global_area_size, file->data->global_area_size);
-    DEBUG_LOG("[PARSE] public_symbols_number=%d (0x%x)\n", file->data->public_symbols_number, file->data->public_symbols_number);
+    DEBUG_LOG("[PARSE] public_symbols_number=%d (0x%x)\n", file->data->public_symbols_number,
+              file->data->public_symbols_number);
 
-    const size_t payload_bytes = size - sizeof(file->data->stringtab_size) + sizeof(file->data->global_area_size) + sizeof(file->data->public_symbols_number);
-    const size_t public_bytes = (size_t)file->data->public_symbols_number * sizeof(public_symbol_t);
-    const size_t string_bytes = (size_t)file->data->stringtab_size;
+    const size_t payload_bytes = size - sizeof(bytefile_data);
+    const size_t public_bytes = file->data->public_symbols_number * sizeof(public_symbol_t);
+    const size_t string_bytes = file->data->stringtab_size;
 
     DEBUG_LOG("[PARSE] size=%zu, payload=%zu\n", size, payload_bytes);
     DEBUG_LOG("[PARSE] public_symbols_number=%d, public_bytes=%zu\n", file->data->public_symbols_number, public_bytes);
@@ -80,7 +82,17 @@ bytefile* load_bytecode_file(const char* filename)
 
     if (public_bytes > payload_bytes || public_bytes + string_bytes > payload_bytes)
     {
-        ERROR_LOG("Invalid bytecode: tables out of range\n");
+        ERROR_LOG(
+            "Invalid bytecode: tables out of range: string_bytes=%zu, public_bytes=%zu, but file_size_without_header=%zu\n",
+            string_bytes, public_bytes, payload_bytes
+        );
+        free(file->data);
+        return NULL;
+    }
+
+    if (string_bytes + public_bytes == payload_bytes)
+    {
+        ERROR_LOG("Empty code section\n");
         free(file->data);
         return NULL;
     }

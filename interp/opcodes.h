@@ -7,20 +7,25 @@
 /* Bytecode reading helpers */
 static unsigned char read_byte()
 {
-    if (ip + 1 >= bytecode->code_ptr + bytecode->code_size)
+    if (ip >= bytecode->code_ptr + bytecode->code_size)
     {
-        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+        failure("out of bytecode while reading byte at ip=%zu, file_position=%zu\n",
+                (void*)(ip - bytecode->code_ptr),
+                (void*)(ip - (char*)bytecode->data)
+        );
     }
     return *ip++;
 }
 
-
 static uint32_t read_uint(void)
 {
     size_t bytes_to_read = sizeof(uint32_t);
-    if (ip + bytes_to_read >= bytecode->code_ptr + bytecode->code_size)
+    if (ip + bytes_to_read > bytecode->code_ptr + bytecode->code_size)
     {
-        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+        failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
+                (void*)(ip - bytecode->code_ptr),
+                (void*)(ip - (char*)bytecode->data)
+        );
     }
     uint32_t res;
     memcpy(&res, ip, bytes_to_read);
@@ -31,9 +36,12 @@ static uint32_t read_uint(void)
 static uint32_t read_int(void)
 {
     size_t bytes_to_read = sizeof(int32_t);
-    if (ip + bytes_to_read >= bytecode->code_ptr + bytecode->code_size)
+    if (ip + bytes_to_read > bytecode->code_ptr + bytecode->code_size)
     {
-        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+        failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
+                (void*)(ip - bytecode->code_ptr),
+                (void*)(ip - (char*)bytecode->data)
+        );
     }
     int32_t res;
     memcpy(&res, ip, bytes_to_read);
@@ -46,8 +54,11 @@ static char* read_string(void)
     uint32_t pos = read_uint();
     if (pos >= bytecode->data->stringtab_size)
     {
-        fprintf(stderr, "invalid string table index: %d (table_size=%d)\n", pos, bytecode->data->stringtab_size);
-        return NULL;
+        failure("invalid string table index: %d (table_size=%d), file_position_of_index=%p\n",
+                pos,
+                bytecode->data->stringtab_size,
+                (void*)(ip - sizeof(uint32_t) - (char*)bytecode->data)
+        );
     }
     return &bytecode->string_ptr[pos];
 }
@@ -1028,7 +1039,7 @@ static error_t op_stop(void)
 
 typedef error_t (*opcode_handler)(void);
 
-static opcode_handler opcodes[256] = {
+const static opcode_handler opcodes[256] = {
     [0x01] = op_add,
     [0x02] = op_sub,
     [0x03] = op_mul,

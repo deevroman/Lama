@@ -10,7 +10,7 @@ add_compile_options(-g)
 #add_compile_options(-fno-strict-aliasing)
 add_compile_options(-Wall)
 add_compile_options(-Wextra)
-#add_compile_options(-DDEBUG)
+add_compile_options(-DDEBUG)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../runtime)
 
