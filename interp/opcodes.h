@@ -5,13 +5,19 @@
 #include "callstack.h"
 
 /* Bytecode reading helpers */
+
+static size_t file_position_from_ip(const char *ip)
+{
+    return ip - (char*)bytecode->data;
+}
+
 static unsigned char read_byte()
 {
     if (ip >= bytecode->code_ptr + bytecode->code_size)
     {
         failure("out of bytecode while reading byte at ip=%zu, file_position=%zu\n",
                 (void*)(ip - bytecode->code_ptr),
-                (void*)(ip - (char*)bytecode->data)
+                file_position_from_ip(ip)
         );
     }
     return *ip++;
@@ -24,7 +30,7 @@ static uint32_t read_uint(void)
     {
         failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
                 (void*)(ip - bytecode->code_ptr),
-                (void*)(ip - (char*)bytecode->data)
+                file_position_from_ip(ip)
         );
     }
     uint32_t res;
@@ -40,7 +46,7 @@ static uint32_t read_int(void)
     {
         failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
                 (void*)(ip - bytecode->code_ptr),
-                (void*)(ip - (char*)bytecode->data)
+                file_position_from_ip(ip)
         );
     }
     int32_t res;
@@ -57,7 +63,7 @@ static char* read_string(void)
         failure("invalid string table index: %d (table_size=%d), file_position_of_index=%p\n",
                 pos,
                 bytecode->data->stringtab_size,
-                (void*)(ip - sizeof(uint32_t) - (char*)bytecode->data)
+                file_position_from_ip(ip - sizeof(uint32_t))
         );
     }
     return &bytecode->string_ptr[pos];
@@ -84,19 +90,19 @@ static error_t NAME(void)                               \
     return OK;                                          \
 }
 
-DEFINE_BINOP(op_add, "+",  a + b)
-DEFINE_BINOP(op_sub, "-",  a - b)
-DEFINE_BINOP(op_mul, "*",  a * b)
+DEFINE_BINOP(op_add, "+", a + b)
+DEFINE_BINOP(op_sub, "-", a - b)
+DEFINE_BINOP(op_mul, "*", a * b)
 
-DEFINE_BINOP(op_lt, "<",   a < b)
-DEFINE_BINOP(op_le, "<=",  a <= b)
-DEFINE_BINOP(op_gt, ">",   a > b)
-DEFINE_BINOP(op_ge, ">=",  a >= b)
-DEFINE_BINOP(op_eq, "==",  a == b)
-DEFINE_BINOP(op_ne, "!=",  a != b)
+DEFINE_BINOP(op_lt, "<", a < b)
+DEFINE_BINOP(op_le, "<=", a <= b)
+DEFINE_BINOP(op_gt, ">", a > b)
+DEFINE_BINOP(op_ge, ">=", a >= b)
+DEFINE_BINOP(op_eq, "==", a == b)
+DEFINE_BINOP(op_ne, "!=", a != b)
 
 DEFINE_BINOP(op_and, "&&", a && b)
-DEFINE_BINOP(op_or,  "||", a || b)
+DEFINE_BINOP(op_or, "||", a || b)
 
 #define DEFINE_BINOP_CHECK(NAME, OP_SYMBOL, CHECK, OP_EXPR) \
 static error_t NAME(void)                                    \
@@ -121,12 +127,12 @@ static error_t NAME(void)                                    \
 }
 
 DEFINE_BINOP_CHECK(op_div, "/",
-    if (b == 0) failure("Division by zero\n");,
-    a / b)
+                   if (b == 0) failure("Division by zero\n");,
+                   a / b)
 
 DEFINE_BINOP_CHECK(op_mod, "%%",
-    if (b == 0) failure("Modulo by zero\n");,
-    a % b)
+                   if (b == 0) failure("Modulo by zero\n");,
+                   a % b)
 
 static error_t op_const(void)
 {
@@ -294,8 +300,8 @@ static error_t name(void)                                        \
     return OK;                                                   \
 }
 
-DEFINE_CJMP(op_cjmpz,  !UNBOX(cond))
-DEFINE_CJMP(op_cjmpnz,  UNBOX(cond))
+DEFINE_CJMP(op_cjmpz, !UNBOX(cond))
+DEFINE_CJMP(op_cjmpnz, UNBOX(cond))
 
 static error_t op_patt_str(void)
 {
@@ -821,17 +827,17 @@ static error_t op_builtin_barray(void)
         return OK;
     }
 
-    stack_value args_ref = get_last_operand_ref((uint32_t)size);
+    stack_value args_ref = get_last_operand_ref(size);
     stack_value* values = NULL;
     TRY(stack_value_to_ref_ptr(args_ref, (void**)&values));
 
-    data* r = alloc_array((uint32_t)size);
-    for (int32_t i = 0; i < size; i++)
+    data* r = alloc_array(size);
+    for (uint32_t i = 0; i < size; i++)
     {
         ((aint*)r->contents)[i] = values[i].value;
     }
 
-    TRY(pop_n_operands((uint32_t)size));
+    TRY(pop_n_operands(size));
     TRY(push_heap_operand((aint*)r->contents));
     return OK;
 }

@@ -53,12 +53,12 @@ void interpret_bytecode(bytefile* bf)
             error_t res = op_handler();
             if (res != OK)
             {
-                failure("Error executing opcode: 0x%02x %s\n", x, res);
+                failure("Error executing opcode: 0x%02x file_position=%zu. Error: %s\n", x, file_position_from_ip(ip), res);
             }
         }
         else
         {
-            failure("No op_handler for opcode: 0x%02x\n", x);
+            failure("No op_handler for opcode: 0x%02x file_position=%zu\n", x, file_position_from_ip(ip));
         }
     }
 
