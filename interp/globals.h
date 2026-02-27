@@ -1,13 +1,14 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
+#include "loader.h"
 
-static int running = 0;
-static char* ip = NULL;
-static bytefile* bytecode;
+extern int running;
+extern char* ip;
+extern bytefile* bytecode;
 
-static char* stack_pointer = NULL;
-static size_t stack_capacity = 0;
-static size_t frame_position = 0;
-static size_t stack_frames_counter = 0;
+extern char* stack_pointer;
+extern size_t stack_capacity;
+extern size_t frame_position;
+extern size_t stack_frames_counter;
 
 #endif //GLOBALS_H

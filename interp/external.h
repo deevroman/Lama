@@ -1,7 +1,9 @@
 #ifndef EXTERNAL_H
 #define EXTERNAL_H
+#include "runtime_common.h"
 
-extern size_t __gc_stack_top, __gc_stack_bottom;
+extern size_t __gc_stack_top;
+extern size_t __gc_stack_bottom;
 
 extern void *Barray(aint *args, aint bn);
 extern void *Bclosure(aint *args, aint bn);

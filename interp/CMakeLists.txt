@@ -16,10 +16,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../runtime)
 
 set(SOURCES
     main.c
+    loader.c
     loader.h
+    interpreter.c
     interpreter.h
     external.h
     opcodes.h
+    callstack.c
     callstack.h
     globals.h
     ../runtime/runtime_common.h
@@ -27,6 +30,7 @@ set(SOURCES
     ../runtime/runtime.h
     ../runtime/gc.c
     ../runtime/gc.h
+        globals.c
 )
 
 add_executable(lama_interp ${SOURCES})

@@ -1,6 +1,7 @@
 #ifndef OPCODES_H
 #define OPCODES_H
 
+#include "globals.h"
 #include "callstack.h"
 
 /* Bytecode reading helpers */
