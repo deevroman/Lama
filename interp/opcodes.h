@@ -64,247 +64,69 @@ static char* read_string(void)
 }
 
 /* Opcode handlers */
-
-static error_t op_add(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP +: %ld + %ld\n", a, b);
-
-    aint result = a + b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", result);
-    TRY(push_operand_and_box(result));
-    return OK;
+#define DEFINE_BINOP(NAME, OP_SYMBOL, OP_EXPR)          \
+static error_t NAME(void)                               \
+{                                                       \
+    stack_value b_val, a_val;                           \
+    TRY(pop_operand(&b_val));                           \
+    TRY(pop_operand(&a_val));                           \
+                                                        \
+    aint b = UNBOX(b_val.value);                        \
+    aint a = UNBOX(a_val.value);                        \
+                                                        \
+    DEBUG_LOG("[EXEC] BINOP %s: %ld %s %ld\n",          \
+              OP_SYMBOL, a, OP_SYMBOL, b);              \
+                                                        \
+    aint res = (OP_EXPR);                               \
+                                                        \
+    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);        \
+    TRY(push_operand_and_box(res));                     \
+    return OK;                                          \
 }
 
-static error_t op_sub(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
+DEFINE_BINOP(op_add, "+",  a + b)
+DEFINE_BINOP(op_sub, "-",  a - b)
+DEFINE_BINOP(op_mul, "*",  a * b)
 
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
+DEFINE_BINOP(op_lt, "<",   a < b)
+DEFINE_BINOP(op_le, "<=",  a <= b)
+DEFINE_BINOP(op_gt, ">",   a > b)
+DEFINE_BINOP(op_ge, ">=",  a >= b)
+DEFINE_BINOP(op_eq, "==",  a == b)
+DEFINE_BINOP(op_ne, "!=",  a != b)
 
-    DEBUG_LOG("[EXEC] BINOP -: %ld - %ld\n", a, b);
+DEFINE_BINOP(op_and, "&&", a && b)
+DEFINE_BINOP(op_or,  "||", a || b)
 
-    aint res = a - b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
+#define DEFINE_BINOP_CHECK(NAME, OP_SYMBOL, CHECK, OP_EXPR) \
+static error_t NAME(void)                                    \
+{                                                            \
+    stack_value b_val, a_val;                                \
+    TRY(pop_operand(&b_val));                                \
+    TRY(pop_operand(&a_val));                                \
+                                                             \
+    aint b = UNBOX(b_val.value);                             \
+    aint a = UNBOX(a_val.value);                             \
+                                                             \
+    DEBUG_LOG("[EXEC] BINOP %s: %ld %s %ld\n",               \
+              OP_SYMBOL, a, OP_SYMBOL, b);                   \
+                                                             \
+    CHECK;                                                   \
+                                                             \
+    aint res = (OP_EXPR);                                    \
+                                                             \
+    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);             \
+    TRY(push_operand_and_box(res));                          \
+    return OK;                                               \
 }
 
-static error_t op_mul(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
+DEFINE_BINOP_CHECK(op_div, "/",
+    if (b == 0) failure("Division by zero\n");,
+    a / b)
 
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP *: %ld * %ld\n", a, b);
-
-    aint res = a * b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_div(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP /: %ld / %ld\n", a, b);
-
-    if (b == 0)
-        failure("Division by zero\n");
-
-    aint res = a / b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_mod(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP %%: %ld %% %ld\n", a, b);
-
-    if (b == 0)
-        failure("Modulo by zero\n");
-
-    aint res = a % b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_lt(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP <: %ld < %ld\n", a, b);
-
-    aint res = a < b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_le(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP <=: %ld <= %ld\n", a, b);
-
-    aint res = a <= b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_gt(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP >: %ld > %ld\n", a, b);
-
-    aint res = a > b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_ge(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP >=: %ld >= %ld\n", a, b);
-
-    aint res = a >= b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_eq(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP ==: %ld == %ld\n", a, b);
-
-    aint res = a == b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_ne(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP !=: %ld != %ld\n", a, b);
-
-    aint res = a != b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_and(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP &&: %ld && %ld\n", a, b);
-
-    aint res = a && b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
-static error_t op_or(void)
-{
-    stack_value b_val, a_val;
-    TRY(pop_operand(&b_val));
-    TRY(pop_operand(&a_val));
-
-    aint b = UNBOX(b_val.value);
-    aint a = UNBOX(a_val.value);
-
-    DEBUG_LOG("[EXEC] BINOP ||: %ld || %ld\n", a, b);
-
-    aint res = a || b;
-
-    DEBUG_LOG("[EXEC]   -> result: %ld\n", res);
-    TRY(push_operand_and_box(res));
-    return OK;
-}
-
+DEFINE_BINOP_CHECK(op_mod, "%%",
+    if (b == 0) failure("Modulo by zero\n");,
+    a % b)
 
 static error_t op_const(void)
 {
@@ -401,10 +223,9 @@ static error_t op_end(void)
         running = 0;
         return OK;
     }
-    for (size_t i = 0; i < args_count; i++)
-    {
-        TRY(pop_operand(NULL));
-    }
+
+    TRY(pop_n_operands(args_count));
+
     TRY(push_operand(callee_ret));
     ip = bytecode->code_ptr + ret_addr;
     return OK;
@@ -449,45 +270,32 @@ static error_t op_begin(void)
     return OK;
 }
 
-static error_t op_cjmpz(void)
-{
-    uint32_t offset = read_uint();
-    stack_value cond_val;
-    TRY(pop_operand(&cond_val));
-    aint cond = cond_val.value;
-    DEBUG_LOG("[EXEC] OP5 CJMPz offset=%d, condition=%ld\n", offset, UNBOX(cond));
-
-    if (!UNBOX(cond))
-    {
-        DEBUG_LOG("[EXEC]   -> jumping to offset %d\n", offset);
-        TRY(safe_jmp(offset));
-    }
-    else
-    {
-        DEBUG_LOG("[EXEC]   -> not jumping\n");
-    }
-    return OK;
+#define DEFINE_CJMP(name, jump_cond)                             \
+static error_t name(void)                                        \
+{                                                                \
+    uint32_t offset = read_uint();                               \
+    stack_value cond_val;                                        \
+    TRY(pop_operand(&cond_val));                                 \
+    aint cond = cond_val.value;                                  \
+                                                                 \
+    DEBUG_LOG("[EXEC] OP5 %s offset=%d, condition=%ld\n",        \
+              #name, offset, UNBOX(cond));                       \
+                                                                 \
+    if (jump_cond)                                               \
+    {                                                            \
+        DEBUG_LOG("[EXEC]   -> jumping to offset %d\n", offset); \
+        TRY(safe_jmp(offset));                                   \
+    }                                                            \
+    else                                                         \
+    {                                                            \
+        DEBUG_LOG("[EXEC]   -> not jumping\n");                  \
+    }                                                            \
+                                                                 \
+    return OK;                                                   \
 }
 
-static error_t op_cjmpnz(void)
-{
-    uint32_t offset = read_uint();
-    stack_value cond_val;
-    TRY(pop_operand(&cond_val));
-    aint cond = cond_val.value;
-    DEBUG_LOG("[EXEC] OP5 CJMPnz offset=%d, condition=%ld\n", offset, UNBOX(cond));
-
-    if (UNBOX(cond))
-    {
-        DEBUG_LOG("[EXEC]   -> jumping to offset %d\n", offset);
-        TRY(safe_jmp(offset));
-    }
-    else
-    {
-        DEBUG_LOG("[EXEC]   -> not jumping\n");
-    }
-    return OK;
-}
+DEFINE_CJMP(op_cjmpz,  !UNBOX(cond))
+DEFINE_CJMP(op_cjmpnz,  UNBOX(cond))
 
 static error_t op_patt_str(void)
 {
@@ -707,10 +515,7 @@ static error_t op_ret(void)
         return "RET with no frames";
     }
 
-    for (size_t i = 0; i < args_count; i++)
-    {
-        TRY(pop_operand(NULL));
-    }
+    TRY(pop_n_operands(args_count));
 
     TRY(push_operand(callee_ret));
     ip = bytecode->code_ptr + ret_addr;
