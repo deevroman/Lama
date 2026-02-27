@@ -373,7 +373,7 @@ static stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] static error_t get_glob(uint32_t index, stack_value* ret)
 {
-    if (index >= bytecode->global_area_size)
+    if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }
@@ -383,7 +383,7 @@ static stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] static error_t set_glob(uint32_t index, stack_value value)
 {
-    if (index >= bytecode->global_area_size)
+    if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }
@@ -414,7 +414,7 @@ static stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] static error_t get_glob_addr(uint32_t index, stack_value* ret)
 {
-    if (index >= bytecode->global_area_size)
+    if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }

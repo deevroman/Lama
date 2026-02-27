@@ -20,7 +20,10 @@ for testfile in $TESTS_DIR/test*.lama; do
 
     test_input=${testfile/.lama/.input}
     expected_output=${testfile/.lama/.expected}
-    timeout 5 $LAMAC -I $RUNTIME_DIR -i $testfile <$test_input 2>&1 >$expected_output 2>&1
+
+    if [ ! -f "$expected_output" ]; then
+        timeout 5 $LAMAC -I $RUNTIME_DIR -i $testfile <$test_input 2>&1 >$expected_output 2>&1
+    fi
 
     $LAMAC -I $RUNTIME_DIR -b $testfile >/dev/null 2>&1
     compile_res=$?

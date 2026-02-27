@@ -4,25 +4,48 @@
 #include "callstack.h"
 
 /* Bytecode reading helpers */
-static unsigned char read_byte(void)
+static unsigned char read_byte()
 {
+    if (ip + 1 >= bytecode->code_ptr + bytecode->code_size)
+    {
+        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+    }
     return *ip++;
 }
 
-static int32_t read_int(void)
+
+static uint32_t read_uint(void)
 {
+    size_t bytes_to_read = sizeof(uint32_t);
+    if (ip + bytes_to_read >= bytecode->code_ptr + bytecode->code_size)
+    {
+        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+    }
+    uint32_t res;
+    memcpy(&res, ip, bytes_to_read);
+    ip += bytes_to_read;
+    return res;
+}
+
+static uint32_t read_int(void)
+{
+    size_t bytes_to_read = sizeof(int32_t);
+    if (ip + bytes_to_read >= bytecode->code_ptr + bytecode->code_size)
+    {
+        failure("out of bytecode while reading byte at ip=%p\n", (void*)(ip - bytecode->code_ptr));
+    }
     int32_t res;
-    memcpy(&res, ip, sizeof(int32_t));
-    ip += sizeof(int32_t);
+    memcpy(&res, ip, bytes_to_read);
+    ip += bytes_to_read;
     return res;
 }
 
 static char* read_string(void)
 {
-    int32_t pos = read_int();
-    if (pos < 0 || (unsigned int)pos >= bytecode->stringtab_size)
+    uint32_t pos = read_uint();
+    if (pos >= bytecode->data->stringtab_size)
     {
-        fprintf(stderr, "invalid string table index: %d (table_size=%d)\n", pos, bytecode->stringtab_size);
+        fprintf(stderr, "invalid string table index: %d (table_size=%d)\n", pos, bytecode->data->stringtab_size);
         return NULL;
     }
     return &bytecode->string_ptr[pos];
@@ -281,7 +304,7 @@ static error_t op_const(void)
 
 static error_t op_ld_g(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LD GLOBAL [%d]\n", index);
     stack_value val;
     TRY(get_glob(index, &val));
@@ -292,7 +315,7 @@ static error_t op_ld_g(void)
 
 static error_t op_st_g(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] ST GLOBAL [%d]\n", index);
     stack_value value;
     TRY(pop_operand(&value));
@@ -331,16 +354,9 @@ static error_t op_swap(void)
     return OK;
 }
 
-[[nodiscard]] error_t safe_jmp(int32_t offset)
+[[nodiscard]] error_t safe_jmp(uint32_t offset)
 {
-    if (offset < 0)
-    {
-        fprintf(stderr, "jump offset negative: %d at ip=%p\n",
-                offset,
-                (void*)(ip - bytecode->code_ptr));
-        return "Negative jump offset";
-    }
-    if ((size_t)offset >= bytecode->code_size)
+    if (offset >= bytecode->code_size)
     {
         fprintf(stderr, "jump offset out of range: %d(code size=%lu) at ip=%p\n",
                 offset,
@@ -354,7 +370,7 @@ static error_t op_swap(void)
 
 static error_t op_jmp(void)
 {
-    int32_t offset = read_int();
+    uint32_t offset = read_uint();
     DEBUG_LOG("[EXEC] OP1 JMP offset=%d\n", offset);
     TRY(safe_jmp(offset));
     return OK;
@@ -403,17 +419,17 @@ static error_t op_builtin_lread(void)
 
 static error_t op_line(void)
 {
-    int32_t line_num = read_int();
+    uint32_t line_num = read_uint();
     DEBUG_LOG("[EXEC] OP5 LINE %d\n", line_num);
     return OK;
 }
 
 static error_t op_begin(void)
 {
-    int32_t args_count = read_int();
-    int32_t locals_count = read_int();
+    uint32_t args_count = read_uint();
+    uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 BEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
-    if ((uint32_t)args_count != get_args_count())
+    if (args_count != get_args_count())
     {
         failure("BEGIN: args_count mismatch\n");
     }
@@ -423,7 +439,7 @@ static error_t op_begin(void)
 
 static error_t op_cjmpz(void)
 {
-    int32_t offset = read_int();
+    uint32_t offset = read_uint();
     stack_value cond_val;
     TRY(pop_operand(&cond_val));
     aint cond = cond_val.value;
@@ -443,7 +459,7 @@ static error_t op_cjmpz(void)
 
 static error_t op_cjmpnz(void)
 {
-    int32_t offset = read_int();
+    uint32_t offset = read_uint();
     stack_value cond_val;
     TRY(pop_operand(&cond_val));
     aint cond = cond_val.value;
@@ -586,22 +602,22 @@ static error_t op_string(void)
 static error_t op_sexp(void)
 {
     char* tag = read_string();
-    int32_t arity = read_int();
-    DEBUG_LOG("[EXEC] SEXP tag=%s arity=%d\n", tag, arity);
+    uint32_t arity = read_uint();
+    DEBUG_LOG("[EXEC] SEXP tag=%s arity=%u\n", tag, arity);
 
     aint t = LtagHash(tag);
-    stack_value args_ref = get_last_operand_ref((uint32_t)arity);
+    stack_value args_ref = get_last_operand_ref(arity);
     stack_value* values = NULL;
     TRY(stack_value_to_ref_ptr(args_ref, (void**)&values));
 
-    sexp* r = alloc_sexp((uint32_t)arity);
+    sexp* r = alloc_sexp(arity);
     for (int i = 0; i < arity; i++)
     {
         ((auint*)r->contents)[i] = values[i].value;
     }
     r->tag = UNBOX(t);
 
-    TRY(pop_n_operands((uint32_t)arity));
+    TRY(pop_n_operands(arity));
     TRY(push_heap_operand((aint*)((data*)r)->contents));
     return OK;
 }
@@ -691,7 +707,7 @@ static error_t op_ret(void)
 
 static error_t op_ld_l(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LD LOCAL [%d]\n", index);
     stack_value val;
     TRY(get_local(index, &val));
@@ -701,7 +717,7 @@ static error_t op_ld_l(void)
 
 static error_t op_ld_a(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LD ARG [%d]\n", index);
     stack_value val;
     TRY(get_arg(index, &val));
@@ -711,7 +727,7 @@ static error_t op_ld_a(void)
 
 static error_t op_ld_c(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LD CLOSURE [%d]\n", index);
     aint clos = get_closure();
     if (UNBOXED(clos) && UNBOX(clos) == 0)
@@ -724,7 +740,7 @@ static error_t op_ld_c(void)
 
 static error_t op_lda_g(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LDA GLOBAL [%d]\n", index);
     stack_value ref;
     TRY(get_glob_addr(index, &ref));
@@ -734,7 +750,7 @@ static error_t op_lda_g(void)
 
 static error_t op_lda_l(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LDA LOCAL [%d]\n", index);
     stack_value ref;
     TRY(get_local_addr(index, &ref));
@@ -744,7 +760,7 @@ static error_t op_lda_l(void)
 
 static error_t op_lda_a(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LDA ARG [%d]\n", index);
     stack_value ref;
     TRY(get_arg_addr(index, &ref));
@@ -754,7 +770,7 @@ static error_t op_lda_a(void)
 
 static error_t op_lda_c(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] LDA CLOSURE [%d]\n", index);
     aint clos = get_closure();
     if (UNBOXED(clos) && UNBOX(clos) == 0)
@@ -767,7 +783,7 @@ static error_t op_lda_c(void)
 
 static error_t op_st_l(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] ST LOCAL [%d]\n", index);
     stack_value val;
     TRY(pop_operand(&val));
@@ -778,7 +794,7 @@ static error_t op_st_l(void)
 
 static error_t op_st_a(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] ST ARG [%d]\n", index);
     stack_value val;
     TRY(pop_operand(&val));
@@ -789,7 +805,7 @@ static error_t op_st_a(void)
 
 static error_t op_st_c(void)
 {
-    int32_t index = read_int();
+    uint32_t index = read_uint();
     DEBUG_LOG("[EXEC] ST CLOSURE [%d]\n", index);
     stack_value val;
     TRY(pop_operand(&val));
@@ -808,35 +824,30 @@ static error_t op_st_c(void)
 
 static error_t op_cbegin(void)
 {
-    int32_t args_count = read_int();
-    int32_t locals_count = read_int();
+    uint32_t args_count = read_uint();
+    uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 CBEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
-    if ((uint32_t)args_count != get_args_count())
+    if (args_count != get_args_count())
     {
         failure("CBEGIN: args_count mismatch\n");
     }
-    TRY(alloc_locals((uint32_t)locals_count));
+    TRY(alloc_locals(locals_count));
     return OK;
 }
 
 static error_t op_closure(void)
 {
-    int32_t offset = read_int();
-    int32_t n = read_int();
+    int32_t offset = read_uint();
+    uint32_t n = read_uint();
     DEBUG_LOG("[EXEC] OP5 CLOSURE offset=%d n=%d\n", offset, n);
 
-    if (n < 0)
-    {
-        failure("Invalid closure capture count: %d\n", n);
-    }
-
-    data* r = alloc_closure((uint32_t)n + 1);
+    data* r = alloc_closure(n + 1);
     ((void**)r->contents)[0] = (void*)(bytecode->code_ptr + offset);
 
     for (int i = 0; i < n; i++)
     {
         char capture_type = read_byte();
-        int32_t capture_index = read_int();
+        uint32_t capture_index = read_uint();
 
         stack_value v;
         switch (capture_type)
@@ -871,7 +882,7 @@ static error_t op_closure(void)
 
 static error_t op_callc(void)
 {
-    int32_t n = read_int();
+    uint32_t n = read_uint();
     DEBUG_LOG("[EXEC] OP5 CALLC n=%d\n", n);
 
     uint32_t ret_addr = ip - bytecode->code_ptr;
@@ -879,10 +890,7 @@ static error_t op_callc(void)
     stack_value* clos_ptr = NULL;
     TRY(stack_value_to_ref_ptr(clos_ref, (void**)&clos_ptr));
     aint clos = clos_ptr->value;
-    if (n > 0)
-    {
-        memmove(clos_ptr, clos_ptr + 1, n * sizeof(stack_value));
-    }
+    memmove(clos_ptr, clos_ptr + 1, n * sizeof(stack_value));
     TRY(pop_operand(NULL));
     void* entry = get_closure_content_ptr(clos);
     TRY(push_closure_frame(clos, ret_addr, (uint32_t)n));
@@ -892,10 +900,10 @@ static error_t op_callc(void)
 
 static error_t op_call(void)
 {
-    int32_t offset = read_int();
-    int32_t args_count = read_int();
+    uint32_t offset = read_uint();
+    uint32_t args_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 CALL offset=%d args_count=%d\n", offset, args_count);
-    TRY(push_frame(ip - bytecode->code_ptr, (uint32_t)args_count));
+    TRY(push_frame(ip - bytecode->code_ptr, args_count));
     TRY(safe_jmp(offset));
     return OK;
 }
@@ -903,8 +911,8 @@ static error_t op_call(void)
 static error_t op_tag(void)
 {
     char* tag = read_string();
-    int32_t arity = read_int();
-    DEBUG_LOG("[EXEC] OP5 TAG tag=%s arity=%d\n", tag, arity);
+    uint32_t arity = read_uint();
+    DEBUG_LOG("[EXEC] OP5 TAG tag=%s arity=%u\n", tag, arity);
 
     stack_value p_val;
     TRY(pop_operand(&p_val));
@@ -916,7 +924,7 @@ static error_t op_tag(void)
     {
         if ((UNBOX(p) == UNBOX(t)))
         {
-            TRY(push_operand(stack_value_from_aint( BOX(1))));
+            TRY(push_operand(stack_value_from_aint(BOX(1))));
         }
         else
         {
@@ -932,8 +940,8 @@ static error_t op_tag(void)
 
 static error_t op_array(void)
 {
-    int32_t size = read_int();
-    DEBUG_LOG("[EXEC] OP5 ARRAY size=%d\n", size);
+    uint32_t size = read_uint();
+    DEBUG_LOG("[EXEC] OP5 ARRAY size=%u\n", size);
 
     stack_value p_val;
     TRY(pop_operand(&p_val));
@@ -945,9 +953,9 @@ static error_t op_array(void)
 
 static error_t op_fail(void)
 {
-    int32_t line = read_int();
-    int32_t col = read_int();
-    DEBUG_LOG("[EXEC] OP5 FAIL line=%d col=%d\n", line, col);
+    uint32_t line = read_uint();
+    uint32_t col = read_uint();
+    DEBUG_LOG("[EXEC] OP5 FAIL line=%u col=%d\n", line, col);
 
     stack_value p_val;
     TRY(pop_operand(&p_val));
@@ -986,13 +994,8 @@ static error_t op_builtin_lstring(void)
 
 static error_t op_builtin_barray(void)
 {
-    int32_t size = read_int();
+    uint32_t size = read_uint();
     DEBUG_LOG("[EXEC] BUILTIN BARRAY size=%d\n", size);
-
-    if (size < 0)
-    {
-        failure("Array size cannot be negative: %d\n", size);
-    }
 
     if (size == 0)
     {

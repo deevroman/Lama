@@ -29,7 +29,7 @@ void interpret_bytecode(bytefile* bf)
         failure("Failed to allocate call stack\n");
     }
 
-    frame_position = bf->global_area_size;
+    frame_position = bf->data->global_area_size;
     __gc_stack_top = (size_t)stack_pointer;
     __gc_stack_bottom = __gc_stack_top + frame_position * sizeof(stack_value);
 

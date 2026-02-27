@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   interpret_bytecode(bytecode_file);
   DEBUG_LOG("interpret_bytecode finished\n");
 
-  free(bytecode_file->global_ptr);
+  free(bytecode_file->data);
   free(bytecode_file);
 
   return 0;
