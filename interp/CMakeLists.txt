@@ -21,16 +21,17 @@ set(SOURCES
     interpreter.c
     interpreter.h
     external.h
+    opcodes.c
     opcodes.h
     callstack.c
     callstack.h
+    globals.c
     globals.h
     ../runtime/runtime_common.h
     ../runtime/runtime.c
     ../runtime/runtime.h
     ../runtime/gc.c
     ../runtime/gc.h
-        globals.c
 )
 
 add_executable(lama_interp ${SOURCES})
