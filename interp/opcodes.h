@@ -32,26 +32,26 @@ DEFINE_BINOP_DECL(op_or)
 DEFINE_BINOP_DECL(op_div)
 DEFINE_BINOP_DECL(op_mod)
 
-static error_t op_const(void);
-static error_t op_ld_g(void);
+error_t op_const(void);
+error_t op_ld_g(void);
 
-static error_t op_st_g(void);
+error_t op_st_g(void);
 
-static error_t op_drop(void);
-static error_t op_dup(void);
+error_t op_drop(void);
+error_t op_dup(void);
 
-static error_t op_swap(void);
+error_t op_swap(void);
 [[nodiscard]] error_t safe_jmp(uint32_t offset);
 
-static error_t op_jmp(void);
+error_t op_jmp(void);
 
-static error_t op_end(void);
-static error_t op_builtin_lread(void);
+error_t op_end(void);
+error_t op_builtin_lread(void);
 
-[[nodiscard]] static error_t op_builtin_lwrite(void);
+[[nodiscard]] error_t op_builtin_lwrite(void);
 
-static error_t op_line(void);
-static error_t op_begin(void);
+error_t op_line(void);
+error_t op_begin(void);
 
 #define DEFINE_CJMP(name) error_t name(void);
 

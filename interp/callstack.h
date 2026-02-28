@@ -38,14 +38,11 @@ stack_value read_stack_value(size_t pos);
 void write_raw_stack_value(size_t pos, uint32_t value);
 [[nodiscard]] error_t read_raw_stack_value(size_t pos, uint32_t* res);
 
-size_t get_locals_count(void);
-size_t get_args_count(void);
 size_t get_closures_start_position(void);
 aint get_closure(void);
 size_t get_args_start_position(void);
 size_t get_locals_start_position(void);
 size_t get_operands_count_pos(void);
-size_t get_operands_count(void);
 void check_stack_capacity();
 
 [[nodiscard]] error_t push_value(stack_value v);

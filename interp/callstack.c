@@ -38,34 +38,6 @@ void write_raw_stack_value(size_t pos, uint32_t value)
     return OK;
 }
 
-size_t get_locals_count(void)
-{
-    uint32_t n;
-    if (!stack_frames_counter)
-    {
-        return 0;
-    }
-    if (read_raw_stack_value(frame_position, &n) != OK)
-    {
-        return 0;
-    }
-    return n;
-}
-
-size_t get_args_count(void)
-{
-    if (!stack_frames_counter)
-    {
-        return 0;
-    }
-    uint32_t args_count;
-    if (read_raw_stack_value(frame_position - 2, &args_count) != OK)
-    {
-        return 0;
-    }
-    return args_count;
-}
-
 size_t get_closures_start_position(void)
 {
     return frame_position - 4;
@@ -82,7 +54,7 @@ aint get_closure(void)
 
 size_t get_args_start_position(void)
 {
-    return get_closures_start_position() - get_args_count();
+    return get_closures_start_position() - current_args_count;
 }
 
 size_t get_locals_start_position(void)
@@ -92,21 +64,7 @@ size_t get_locals_start_position(void)
 
 size_t get_operands_count_pos(void)
 {
-    return get_locals_start_position() + get_locals_count();
-}
-
-size_t get_operands_count(void)
-{
-    uint32_t n;
-    if (!stack_frames_counter)
-    {
-        return 0;
-    }
-    if (read_raw_stack_value(get_operands_count_pos(), &n) != OK)
-    {
-        return 0;
-    }
-    return n;
+    return get_locals_start_position() + current_locals_count;
 }
 
 void check_stack_capacity()
@@ -120,7 +78,7 @@ void check_stack_capacity()
     aint* new_stack = realloc((void*)__gc_stack_top, new_capacity);
     if (!new_stack)
     {
-        failure("Failed to realloc(..., %zu) call stack\n", new_capacity);
+        failure("Failed to realloc(%p, %zu) call stack\n", __gc_stack_top, new_capacity);
     }
 
     stack_pointer = (char*)new_stack;
@@ -149,7 +107,7 @@ void check_stack_capacity()
 {
     if (stack_values_count() == 0)
     {
-        return "Operand stack underflow";
+        return "Stack underflow in pop_stack_value";
     }
     __gc_stack_bottom -= sizeof(stack_value);
     if (ret)
@@ -189,6 +147,9 @@ stack_value stack_value_from_aint(aint value)
     TRY(push_raw_value(args_count));
     TRY(push_raw_value(frame_position));
     frame_position = stack_values_count();
+    current_args_count = args_count;
+    current_operands_count = 0;
+    current_locals_count = 0;
     stack_frames_counter++;
     return OK;
 }
@@ -200,12 +161,16 @@ stack_value stack_value_from_aint(aint value)
     TRY(push_raw_value(args_count));
     TRY(push_raw_value(frame_position));
     frame_position = stack_values_count();
+    current_args_count = args_count;
+    current_operands_count = 0;
+    current_locals_count = 0;
     stack_frames_counter++;
     return OK;
 }
 
 [[nodiscard]] error_t alloc_locals(uint32_t n)
 {
+    current_locals_count = n;
     TRY(push_raw_value(n));
     __gc_stack_bottom += n * sizeof(stack_value);
     TRY(push_raw_value(0));
@@ -216,7 +181,7 @@ stack_value stack_value_from_aint(aint value)
 {
     if (!stack_frames_counter)
     {
-        return "Stack underflow";
+        return "Stack underflow in pop_frame";
     }
     __gc_stack_bottom = __gc_stack_top + frame_position * sizeof(stack_value);
     stack_value prev_fp;
@@ -238,68 +203,68 @@ stack_value stack_value_from_aint(aint value)
     stack_value closure;
     TRY(pop_stack_value(&closure));
 
+    if (stack_frames_counter)
+    {
+        TRY(read_raw_stack_value(frame_position, (uint32_t*)&current_locals_count));
+        TRY(read_raw_stack_value(frame_position - 2, (uint32_t*)&current_args_count));
+        TRY(read_raw_stack_value(get_operands_count_pos(), (uint32_t*)&current_operands_count));
+    }
+
     return OK;
 }
 
 [[nodiscard]] error_t push_operand(stack_value value)
 {
-    uint32_t n = get_operands_count();
     TRY(push_value(value));
-    write_raw_stack_value(get_operands_count_pos(), n + 1);
+    write_raw_stack_value(get_operands_count_pos(), ++current_operands_count);
     return OK;
 }
 
 [[nodiscard]] error_t push_operand_and_box(aint value)
 {
-    uint32_t n = get_operands_count();
     TRY(push_value((stack_value){.tag = RAW_VALUE, .value = BOX(value)}));
-    write_raw_stack_value(get_operands_count_pos(), n + 1);
+    write_raw_stack_value(get_operands_count_pos(), ++current_operands_count);
     return OK;
 }
 
 [[nodiscard]] error_t push_heap_operand(aint* ptr)
 {
-    uint32_t n = get_operands_count();
     TRY(push_value((stack_value){.tag = HEAP_PTR, .value = (aint)ptr}));
-    write_raw_stack_value(get_operands_count_pos(), n + 1);
+    write_raw_stack_value(get_operands_count_pos(), ++current_operands_count);
     return OK;
 }
 
 [[nodiscard]] error_t pop_operand(stack_value* ret)
 {
-    uint32_t n = get_operands_count();
-    if (n == 0)
+    if (current_operands_count == 0)
     {
-        return "Operand stack underflow";
+        return "Stack underflow in pop_operand";
     }
-
     TRY(pop_stack_value(ret));
-    write_raw_stack_value(get_operands_count_pos(), n - 1);
+    write_raw_stack_value(get_operands_count_pos(), --current_operands_count);
     return OK;
 }
 
 [[nodiscard]] error_t pop_n_operands(uint32_t n)
 {
-    uint32_t operands_count = get_operands_count();
-    if (operands_count < n)
+    if (current_operands_count < n)
     {
-        return "Operand stack underflow";
+        failure("Stack underflow in pop_n_operands(%u), current_operands_count=%u", n, current_operands_count);
     }
-
-    write_raw_stack_value(get_operands_count_pos(), operands_count - n);
+    write_raw_stack_value(get_operands_count_pos(), current_operands_count -= n);
     __gc_stack_bottom -= n * sizeof(stack_value);
     return OK;
 }
 
 [[nodiscard]] stack_value get_last_operand_ref(uint32_t n)
 {
-    size_t pos = get_operands_count_pos() + 1 + (get_operands_count() - n);
+    size_t pos = get_operands_count_pos() + 1 + (current_operands_count - n);
     return (stack_value){.tag = STACK_REF, .value = BOX(pos)};
 }
 
 [[nodiscard]] error_t get_local(uint32_t index, stack_value* ret)
 {
-    if (index >= get_locals_count())
+    if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
@@ -309,7 +274,7 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t set_local(uint32_t index, stack_value value)
 {
-    if (index >= get_locals_count())
+    if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
@@ -319,7 +284,7 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t get_arg(uint32_t index, stack_value* ret)
 {
-    if (index >= get_args_count())
+    if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
@@ -329,7 +294,7 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t set_arg(uint32_t index, stack_value value)
 {
-    if (index >= get_args_count())
+    if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
@@ -359,7 +324,7 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t get_local_addr(uint32_t index, stack_value* ret)
 {
-    if (index >= get_locals_count())
+    if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
@@ -368,9 +333,9 @@ stack_value stack_value_from_aint(aint value)
 }
 
 [[nodiscard]] error_t get_arg_addr(uint32_t index,
-                                          stack_value* ret)
+                                   stack_value* ret)
 {
-    if (index >= get_args_count())
+    if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
@@ -464,16 +429,15 @@ error_t write_by_ref(stack_value ref, stack_value value)
 {
     if (ref.tag == STACK_REF)
     {
-        stack_value* v = NULL;
+        stack_value* v;
         TRY(stack_value_to_ref_ptr(ref, (void**)&v));
         *v = value;
         return OK;
     }
-    aint* p = NULL;
+    aint* p;
     TRY(stack_value_to_ref_ptr(ref, (void**)&p));
     aint v;
     TRY(stack_value_to_raw_aint(value, &v));
     Bsta(p, (aint)p, (void*)v);
     return OK;
 }
-

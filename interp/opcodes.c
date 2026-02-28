@@ -219,7 +219,7 @@ error_t op_jmp(void)
 error_t op_end(void)
 {
     DEBUG_LOG("[EXEC] END\n");
-    size_t args_count = get_args_count();
+    size_t args_count = current_args_count;
     stack_value callee_ret;
     TRY(pop_operand(&callee_ret));
     uint32_t ret_addr;
@@ -231,7 +231,6 @@ error_t op_end(void)
     }
 
     TRY(pop_n_operands(args_count));
-
     TRY(push_operand(callee_ret));
     ip = bytecode->code_ptr + ret_addr;
     return OK;
@@ -268,7 +267,7 @@ error_t op_begin(void)
     uint32_t args_count = read_uint();
     uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 BEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
-    if (args_count != get_args_count())
+    if (args_count != current_args_count)
     {
         failure("BEGIN: args_count mismatch\n");
     }
@@ -511,7 +510,7 @@ error_t op_ret(void)
 {
     DEBUG_LOG("[EXEC] RET\n");
     stack_value callee_ret;
-    size_t args_count = get_args_count();
+    size_t args_count = current_args_count;
     TRY(pop_operand(&callee_ret));
     uint32_t ret_addr;
     TRY(pop_frame(&ret_addr));
@@ -650,7 +649,7 @@ error_t op_cbegin(void)
     uint32_t args_count = read_uint();
     uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 CBEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
-    if (args_count != get_args_count())
+    if (args_count != current_args_count)
     {
         failure("CBEGIN: args_count mismatch\n");
     }

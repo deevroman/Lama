@@ -12,6 +12,8 @@
 
 void loop_with_table()
 {
+    int instr_count = 0;
+    running = 1;
     while (running)
     {
         unsigned char x = read_byte();
@@ -36,6 +38,8 @@ void loop_with_table()
 
 void loop_with_switch()
 {
+    int instr_count = 0;
+    running = 1;
     while (running)
     {
         unsigned char x = read_byte();
@@ -234,9 +238,6 @@ void interpret_bytecode(bytefile* bf)
     {
         failure("Failed to push initial call frame");
     }
-
-    int instr_count = 0;
-    running = 1;
 
     loop_with_table();
     // loop_with_switch();
