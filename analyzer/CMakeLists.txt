@@ -23,8 +23,8 @@ set(SOURCES
         ../interp/globals.h
         ../interp/loader.c
         ../interp/loader.h
-        ../interp/opcodes.c
-        ../interp/opcodes.h
+        ../interp/interpreter.c
+        ../interp/interpreter.h
         ../interp/callstack.c
         ../interp/callstack.h
         ../runtime/runtime_common.h

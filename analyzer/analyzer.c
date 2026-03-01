@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "runtime.h"
-#include "../interp/opcodes.h"
+#include "../interp/interpreter.h"
 
 static int is_jump(uint8_t op)
 {
