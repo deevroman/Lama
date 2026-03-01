@@ -13,7 +13,7 @@ cd analyzer && cmake . -B cmake-build-debug && cmake --build ./cmake-build-debug
     ./cmake-build-debug/lama_analyzer ../interp/tests/performance/Sort.bc
 ```
 
-Примеры запуске в Github Actions: https://github.com/deevroman/Lama/actions/workflows/tests_lab_3.yml
+Примеры запуске в Github Actions: https://github.com/deevroman/Lama/actions/runs/22544024450/job/65303425158
 
 <details>
 <summary>Результат</summary>
