@@ -1,0 +1,35 @@
+name: tests lab3  in docker
+on:
+  push:
+
+env:
+  OPAMROOT: /home/user/.opam
+  OPAMCONFIRMLEVEL: unsafe-yes
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: trickyfoxy/lama
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build runtime
+        working-directory: runtime
+        run: make
+
+      - name: build interpreter
+        working-directory: analyzer
+        run: |
+          cmake . -B cmake-build-debug && cmake --build ./cmake-build-debug
+
+      - name: run example
+        working-directory: analyzer
+        run: ./cmake-build-debug/lama_analyzer ../interp/tests/performance/Sort.bc
+

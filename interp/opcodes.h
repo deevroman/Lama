@@ -6,7 +6,7 @@
 
 /* Bytecode reading helpers */
 
-size_t file_position_from_ip(const char *ip);
+size_t file_position_from_ip(const char* ip);
 unsigned char read_byte();
 uint32_t read_uint(void);
 uint32_t read_int(void);
@@ -96,92 +96,107 @@ error_t op_stop(void);
 
 typedef error_t (*opcode_handler)(void);
 
+#pragma push_macro("TAG")
+#undef TAG
+
+#define OPCODE_LIST(X)                                                                        \
+    X(0x01, ADD,             op_add,             0)                                           \
+    X(0x02, SUB,             op_sub,             0)                                           \
+    X(0x03, MUL,             op_mul,             0)                                           \
+    X(0x04, DIV,             op_div,             0)                                           \
+    X(0x05, MOD,             op_mod,             0)                                           \
+    X(0x06, LT,              op_lt,              0)                                           \
+    X(0x07, LE,              op_le,              0)                                           \
+    X(0x08, GT,              op_gt,              0)                                           \
+    X(0x09, GE,              op_ge,              0)                                           \
+    X(0x0A, EQ,              op_eq,              0)                                           \
+    X(0x0B, NE,              op_ne,              0)                                           \
+    X(0x0C, AND,             op_and,             0)                                           \
+    X(0x0D, OR,              op_or,              0)                                           \
+                                                                                              \
+    X(0x10, CONST,           op_const,           4)                                           \
+    X(0x11, STRING,          op_string,          4)                                           \
+    X(0x12, SEXP,            op_sexp,            8)                                           \
+    X(0x13, STI,             op_sti,             0)                                           \
+    X(0x14, STA,             op_sta,             0)                                           \
+    X(0x15, JMP,             op_jmp,             4)                                           \
+    X(0x16, END,             op_end,             0)                                           \
+    X(0x17, RET,             op_ret,             0)                                           \
+    X(0x18, DROP,            op_drop,            0)                                           \
+    X(0x19, DUP,             op_dup,             0)                                           \
+    X(0x1A, SWAP,            op_swap,            0)                                           \
+    X(0x1B, ELEM,            op_elem,            0)                                           \
+                                                                                              \
+    X(0x20, LD_G,            op_ld_g,            4)                                           \
+    X(0x21, LD_L,            op_ld_l,            4)                                           \
+    X(0x22, LD_A,            op_ld_a,            4)                                           \
+    X(0x23, LD_C,            op_ld_c,            4)                                           \
+                                                                                              \
+    X(0x30, LDA_G,           op_lda_g,           4)                                           \
+    X(0x31, LDA_L,           op_lda_l,           4)                                           \
+    X(0x32, LDA_A,           op_lda_a,           4)                                           \
+    X(0x33, LDA_C,           op_lda_c,           4)                                           \
+                                                                                              \
+    X(0x40, ST_G,            op_st_g,            4)                                           \
+    X(0x41, ST_L,            op_st_l,            4)                                           \
+    X(0x42, ST_A,            op_st_a,            4)                                           \
+    X(0x43, ST_C,            op_st_c,            4)                                           \
+                                                                                              \
+    X(0x50, CJMPz,           op_cjmpz,           4)                                           \
+    X(0x51, CJMPnz,          op_cjmpnz,          4)                                           \
+    X(0x52, BEGIN,           op_begin,           8)                                           \
+    X(0x53, CBEGIN,          op_cbegin,          8)                                           \
+    X(0x54, CLOSURE,         op_closure,         -1)                                          \
+    X(0x55, CALLC,           op_callc,           4)                                           \
+    X(0x56, CALL,            op_call,            8)                                           \
+    X(0x57, TAG,             op_tag,             8)                                           \
+    X(0x58, ARRAY,           op_array,           4)                                           \
+    X(0x59, FAIL,            op_fail,            8)                                           \
+    X(0x5A, LINE,            op_line,            4)                                           \
+                                                                                              \
+    X(0x60, PATT_STR,        op_patt_str,        0)                                           \
+    X(0x61, PATT_STRING_TAG, op_patt_string_tag, 0)                                           \
+    X(0x62, PATT_ARRAY_TAG,  op_patt_array_tag,  0)                                           \
+    X(0x63, PATT_SEXP_TAG,   op_patt_sexp_tag,   0)                                           \
+    X(0x64, PATT_REF,        op_patt_ref,        0)                                           \
+    X(0x65, PATT_VAL,        op_patt_val,        0)                                           \
+    X(0x66, PATT_FUN,        op_patt_fun,        0)                                           \
+                                                                                              \
+    X(0x70, LREAD,           op_builtin_lread,   0)                                           \
+    X(0x71, LWRITE,          op_builtin_lwrite,  0)                                           \
+    X(0x72, LLENGTH,         op_builtin_llength, 0)                                           \
+    X(0x73, LSTRING,         op_builtin_lstring, 0)                                           \
+    X(0x74, BARRAY,          op_builtin_barray,  4)                                           \
+                                                                                              \
+    X(0xF0, STOP,            op_stop,            0)                                           \
+
+#define GEN_HANDLER(code, name, func, args_bytes) [code] = func,
 const static opcode_handler opcodes[256] = {
-    [0x01] = op_add,
-    [0x02] = op_sub,
-    [0x03] = op_mul,
-    [0x04] = op_div,
-    [0x05] = op_mod,
-    [0x06] = op_lt,
-    [0x07] = op_le,
-    [0x08] = op_gt,
-    [0x09] = op_ge,
-    [0x0A] = op_eq,
-    [0x0B] = op_ne,
-    [0x0C] = op_and,
-    [0x0D] = op_or,
-
-    [0x10] = op_const,
-    [0x11] = op_string,
-    [0x12] = op_sexp,
-    [0x13] = op_sti,
-    [0x14] = op_sta,
-    [0x15] = op_jmp,
-    [0x16] = op_end,
-    [0x17] = op_ret,
-    [0x18] = op_drop,
-    [0x19] = op_dup,
-    [0x1A] = op_swap,
-    [0x1B] = op_elem,
-
-    [0x20] = op_ld_g,
-    [0x21] = op_ld_l,
-    [0x22] = op_ld_a,
-    [0x23] = op_ld_c,
-
-    [0x30] = op_lda_g,
-    [0x31] = op_lda_l,
-    [0x32] = op_lda_a,
-    [0x33] = op_lda_c,
-
-    [0x40] = op_st_g,
-    [0x41] = op_st_l,
-    [0x42] = op_st_a,
-    [0x43] = op_st_c,
-
-    [0x50] = op_cjmpz,
-    [0x51] = op_cjmpnz,
-    [0x52] = op_begin,
-    [0x53] = op_cbegin,
-    [0x54] = op_closure,
-    [0x55] = op_callc,
-    [0x56] = op_call,
-    [0x57] = op_tag,
-    [0x58] = op_array,
-    [0x59] = op_fail,
-    [0x5A] = op_line,
-
-    [0x60] = op_patt_str,
-    [0x61] = op_patt_string_tag,
-    [0x62] = op_patt_array_tag,
-    [0x63] = op_patt_sexp_tag,
-    [0x64] = op_patt_ref,
-    [0x65] = op_patt_val,
-    [0x66] = op_patt_fun,
-
-    [0x70] = op_builtin_lread,
-    [0x71] = op_builtin_lwrite,
-    [0x72] = op_builtin_llength,
-    [0x73] = op_builtin_lstring,
-    [0x74] = op_builtin_barray,
-
-    [0xF0] = op_stop,
-    [0xF1] = op_stop,
-    [0xF2] = op_stop,
-    [0xF3] = op_stop,
-    [0xF4] = op_stop,
-    [0xF5] = op_stop,
-    [0xF6] = op_stop,
-    [0xF7] = op_stop,
-    [0xF8] = op_stop,
-    [0xF9] = op_stop,
-    [0xFA] = op_stop,
-    [0xFB] = op_stop,
-    [0xFC] = op_stop,
-    [0xFD] = op_stop,
-    [0xFE] = op_stop,
-    [0xFF] = op_stop,
+    OPCODE_LIST(GEN_HANDLER)
+    [0xF1 ... 0xFF] = op_stop
 };
+#undef GEN_HANDLER
 
+#define GEN_NAME(code, name, func, args_bytes) [code] = #name,
+static const char* opcode_names[256] = {
+    OPCODE_LIST(GEN_NAME)
+    [0xF1 ... 0xFF] = "STOP"
+};
+#undef GEN_NAME
+
+#define GEN_ARGS_COUNT(code, name, func, args_bytes) [code] = args_bytes,
+static const int opcode_args_count[256] = {
+    OPCODE_LIST(GEN_ARGS_COUNT)
+    [0xF1 ... 0xFF] = 0
+};
+#undef GEN_ARGS_COUNT
+
+#define GEN_ENUM(code, name, func, args_bytes) OPC_##name = code,
+typedef enum {
+    OPCODE_LIST(GEN_ENUM)
+} opcode_t;
+#undef GEN_ENUM
+
+#pragma pop_macro("TAG")
 
 #endif //OPCODES_H
