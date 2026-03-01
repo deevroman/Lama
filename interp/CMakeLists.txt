@@ -21,8 +21,6 @@ set(SOURCES
     interpreter.c
     interpreter.h
     external.h
-    opcodes.c
-    opcodes.h
     callstack.c
     callstack.h
     globals.c
