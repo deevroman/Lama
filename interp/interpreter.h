@@ -98,29 +98,25 @@ typedef error_t (*opcode_handler)(void);
 #pragma push_macro("TAG")
 #undef TAG
 
-#define X(code, name, func, args_bytes) [code] = func,
 const static opcode_handler opcodes[256] = {
+#define X3(code, name, func) [code] = func,
 #include "opcodes.inc"
 };
-#undef X
 
-#define X(code, name, func, args_bytes) [code] = #name,
 static const char* opcode_names[256] = {
+#define X2(code, name) [code] = #name,
 #include "opcodes.inc"
 };
-#undef X
 
-#define X(code, name, func, args_bytes) [code] = args_bytes,
 static const int opcode_args_count[256] = {
+#define X4(code, name, func, args_bytes) [code] = args_bytes,
 #include "opcodes.inc"
 };
-#undef X
 
-#define X(code, name, func, args_bytes) OPC_##name = code,
 typedef enum {
+#define X2(code, name) OPC_##name = code,
 #include "opcodes.inc"
 } opcode_t;
-#undef X
 
 #pragma pop_macro("TAG")
 

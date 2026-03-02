@@ -877,9 +877,8 @@ void interpret_bytecode(bytefile* bf)
 
         switch (x)
         {
-        #define X(code, name, func, args_bytes) case code: res = func(); break;
+        #define X3(code, name, func) case code: res = func(); break;
         #include "opcodes.inc"
-        #undef X
         default:
             failure("No op_handler for opcode: 0x%02x file_position=%zu\n",
                     x, file_position_from_ip(ip));

@@ -1,3 +1,19 @@
+#ifdef X4
+    #define X(code, name, func, args_bytes) X4(code, name, func, args_bytes)
+#endif
+
+#ifdef X3
+    #define X(code, name, func, args_bytes) X3(code, name, func)
+#endif
+
+#ifdef X2
+    #define X(code, name, func, args_bytes) X2(code, name)
+#endif
+
+#ifdef X1
+    #define X(code, name, func, args_bytes) X1(code)
+#endif
+
 #define NO_ARGS 0
 #define READ_BYTE 1
 #define READ_INT 4
@@ -72,3 +88,8 @@ X(0x72, LLENGTH,         op_builtin_llength, NO_ARGS                )
 X(0x73, LSTRING,         op_builtin_lstring, NO_ARGS                )
 X(0x74, BARRAY,          op_builtin_barray,  READ_INT               )
 
+#undef X
+#undef X1
+#undef X2
+#undef X3
+#undef X4
