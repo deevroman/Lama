@@ -99,22 +99,22 @@ typedef error_t (*opcode_handler)(void);
 #undef TAG
 
 const static opcode_handler opcodes[256] = {
-#define X3(code, name, func) [code] = func,
+#define X(code, name, func, ...) [code] = func,
 #include "opcodes.inc"
 };
 
 static const char* opcode_names[256] = {
-#define X2(code, name) [code] = #name,
+#define X(code, name, ...) [code] = #name,
 #include "opcodes.inc"
 };
 
 static const int opcode_args_count[256] = {
-#define X4(code, name, func, args_bytes) [code] = args_bytes,
+#define X(code, name, func, args_bytes) [code] = args_bytes,
 #include "opcodes.inc"
 };
 
 typedef enum {
-#define X2(code, name) OPC_##name = code,
+#define X(code, name, ...) OPC_##name = code,
 #include "opcodes.inc"
 } opcode_t;
 
