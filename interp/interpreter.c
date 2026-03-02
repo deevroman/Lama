@@ -836,13 +836,6 @@ error_t op_builtin_barray(void)
     return OK;
 }
 
-error_t op_stop(void)
-{
-    running = 0;
-    return OK;
-}
-
-
 void interpret_bytecode(bytefile* bf)
 {
     DEBUG_LOG("[DEBUG] Calling __gc_init...\n");
@@ -882,7 +875,15 @@ void interpret_bytecode(bytefile* bf)
 
         error_t res;
 
-        MAIN_SWITCH(x);
+        switch (x)
+        {
+        #define X(code, name, func, args_bytes) case code: res = func(); break;
+        #include "opcodes.inc"
+        #undef X
+        default:
+            failure("No op_handler for opcode: 0x%02x file_position=%zu\n",
+                    x, file_position_from_ip(ip));
+        }
 
         if (res != OK)
         {
