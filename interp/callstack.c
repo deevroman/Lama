@@ -105,10 +105,12 @@ void check_stack_capacity()
 
 [[nodiscard]] error_t pop_stack_value(stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (stack_values_count() == 0)
     {
         return "Stack underflow in pop_stack_value";
     }
+#endif
     __gc_stack_bottom -= sizeof(stack_value);
     if (ret)
     {
@@ -236,10 +238,12 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t pop_operand(stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (current_operands_count == 0)
     {
         return "Stack underflow in pop_operand";
     }
+#endif
     TRY(pop_stack_value(ret));
     write_raw_stack_value(get_operands_count_pos(), --current_operands_count);
     return OK;
@@ -247,10 +251,12 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t pop_n_operands(uint32_t n)
 {
+#ifndef VERIFY_BYTECODE
     if (current_operands_count < n)
     {
         failure("Stack underflow in pop_n_operands(%u), current_operands_count=%u", n, current_operands_count);
     }
+#endif
     write_raw_stack_value(get_operands_count_pos(), current_operands_count -= n);
     __gc_stack_bottom -= n * sizeof(stack_value);
     return OK;
@@ -264,70 +270,84 @@ stack_value stack_value_from_aint(aint value)
 
 [[nodiscard]] error_t get_local(uint32_t index, stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
+#endif
     *ret = read_stack_value(get_locals_start_position() + index);
     return OK;
 }
 
 [[nodiscard]] error_t set_local(uint32_t index, stack_value value)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
+#endif
     write_stack_value(get_locals_start_position() + index, value);
     return OK;
 }
 
 [[nodiscard]] error_t get_arg(uint32_t index, stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
+#endif
     *ret = read_stack_value(get_args_start_position() + index);
     return OK;
 }
 
 [[nodiscard]] error_t set_arg(uint32_t index, stack_value value)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
+#endif
     write_stack_value(get_args_start_position() + index, value);
     return OK;
 }
 
 [[nodiscard]] error_t get_glob(uint32_t index, stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }
+#endif
     *ret = read_stack_value(index);
     return OK;
 }
 
 [[nodiscard]] error_t set_glob(uint32_t index, stack_value value)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }
+#endif
     write_stack_value(index, value);
     return OK;
 }
 
 [[nodiscard]] error_t get_local_addr(uint32_t index, stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_locals_count)
     {
         return "Local variable index out of range";
     }
+#endif
     *ret = (stack_value){.tag = STACK_REF, .value = BOX(get_locals_start_position() + index)};
     return OK;
 }
@@ -335,20 +355,24 @@ stack_value stack_value_from_aint(aint value)
 [[nodiscard]] error_t get_arg_addr(uint32_t index,
                                    stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= current_args_count)
     {
         return "Argument index out of range";
     }
+#endif
     *ret = (stack_value){.tag = STACK_REF, .value = BOX(get_args_start_position() + index)};
     return OK;
 }
 
 [[nodiscard]] error_t get_glob_addr(uint32_t index, stack_value* ret)
 {
+#ifndef VERIFY_BYTECODE
     if (index >= bytecode->data->global_area_size)
     {
         return "Global variable index out of range";
     }
+#endif
     *ret = (stack_value){.tag = STACK_REF, .value = BOX(index)};
     return OK;
 }

@@ -14,6 +14,7 @@ size_t file_position_from_ip(const char *ip)
 
 unsigned char read_byte()
 {
+#ifndef VERIFY_BYTECODE
     if (ip >= bytecode->code_ptr + bytecode->code_size)
     {
         failure("out of bytecode while reading byte at ip=%zu, file_position=%zu\n",
@@ -21,12 +22,14 @@ unsigned char read_byte()
                 file_position_from_ip(ip)
         );
     }
+#endif
     return *ip++;
 }
 
 uint32_t read_uint(void)
 {
     size_t bytes_to_read = sizeof(uint32_t);
+#ifndef VERIFY_BYTECODE
     if (ip + bytes_to_read > bytecode->code_ptr + bytecode->code_size)
     {
         failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
@@ -34,6 +37,7 @@ uint32_t read_uint(void)
                 file_position_from_ip(ip)
         );
     }
+#endif
     uint32_t res;
     memcpy(&res, ip, bytes_to_read);
     ip += bytes_to_read;
@@ -43,6 +47,7 @@ uint32_t read_uint(void)
 uint32_t read_int(void)
 {
     size_t bytes_to_read = sizeof(int32_t);
+#ifndef VERIFY_BYTECODE
     if (ip + bytes_to_read > bytecode->code_ptr + bytecode->code_size)
     {
         failure("out of bytecode while reading byte at ip=%p, file_position=%p\n",
@@ -50,6 +55,7 @@ uint32_t read_int(void)
                 file_position_from_ip(ip)
         );
     }
+#endif
     int32_t res;
     memcpy(&res, ip, bytes_to_read);
     ip += bytes_to_read;
@@ -59,6 +65,7 @@ uint32_t read_int(void)
 char* read_string(void)
 {
     uint32_t pos = read_uint();
+#ifndef VERIFY_BYTECODE
     if (pos >= bytecode->data->stringtab_size)
     {
         failure("invalid string table index: %d (table_size=%d), file_position_of_index=%p\n",
@@ -67,6 +74,7 @@ char* read_string(void)
                 file_position_from_ip(ip - sizeof(uint32_t))
         );
     }
+#endif
     return &bytecode->string_ptr[pos];
 }
 
@@ -197,6 +205,7 @@ error_t op_swap(void)
 
 [[nodiscard]] error_t safe_jmp(uint32_t offset)
 {
+#ifndef VERIFY_BYTECODE
     if (offset >= bytecode->code_size)
     {
         fprintf(stderr, "jump offset out of range: %d(code size=%lu) at ip=%p\n",
@@ -205,6 +214,7 @@ error_t op_swap(void)
                 (void*)(ip - bytecode->code_ptr));
         return "Jump offset out of range";
     }
+#endif
     ip = bytecode->code_ptr + offset;
     return OK;
 }
@@ -268,16 +278,18 @@ error_t op_begin(void)
     uint32_t args_count = read_uint();
     uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 BEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
+#ifndef VERIFY_BYTECODE
     if (args_count != current_args_count)
     {
         failure("BEGIN: args_count mismatch\n");
     }
+#endif
     TRY(alloc_locals(locals_count));
     return OK;
 }
 
 #define DEFINE_CJMP(name, jump_cond)                             \
-error_t name(void)                                        \
+error_t name(void)                                               \
 {                                                                \
     uint32_t offset = read_uint();                               \
     stack_value cond_val;                                        \
@@ -650,10 +662,12 @@ error_t op_cbegin(void)
     uint32_t args_count = read_uint();
     uint32_t locals_count = read_uint();
     DEBUG_LOG("[EXEC] OP5 CBEGIN args_count=%d locals_count=%d\n", args_count, locals_count);
+#ifndef VERIFY_BYTECODE
     if (args_count != current_args_count)
     {
         failure("CBEGIN: args_count mismatch\n");
     }
+#endif
     TRY(alloc_locals(locals_count));
     return OK;
 }
@@ -868,20 +882,21 @@ void interpret_bytecode(bytefile* bf)
 
     int instr_count = 0;
     running = 1;
+    error_t res = OK;
     while (running)
     {
         unsigned char x = read_byte();
         DEBUG_LOG("[DEBUG] Instr #%d: 0x%02x\n", instr_count++, x);
 
-        error_t res;
-
         switch (x)
         {
         #define X(code, name, func, ...) case code: res = func(); break;
         #include "opcodes.inc"
+#ifndef VERIFY_BYTECODE
         default:
             failure("No op_handler for opcode: 0x%02x file_position=%zu\n",
                     x, file_position_from_ip(ip));
+#endif
         }
 
         if (res != OK)

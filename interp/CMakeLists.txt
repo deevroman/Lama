@@ -20,6 +20,8 @@ set(SOURCES
     loader.h
     interpreter.c
     interpreter.h
+    verifier.c
+    verifier.h
     external.h
     callstack.c
     callstack.h
@@ -33,6 +35,8 @@ set(SOURCES
 )
 
 add_executable(lama_interp ${SOURCES})
+add_executable(lama_interp_verify ${SOURCES})
+target_compile_definitions(lama_interp_verify PRIVATE VERIFY_BYTECODE)
 
 #target_compile_options(lama_interp PRIVATE
 #        -g
@@ -46,5 +50,3 @@ add_executable(lama_interp ${SOURCES})
 #)
 
 #target_link_libraries(lama_interp ${CMAKE_CURRENT_SOURCE_DIR}/../runtime/runtime.a)
-
-

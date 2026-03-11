@@ -38,22 +38,28 @@ cd ../src && make && cd -
 ./run-performance-test.sh
 ```
 
-При запуске в GitHub Actions рекурсивный интерпретатор выполняет Sort.lama за ~9s. 
-Реализованный интеративный интерпретатор за ~3s.
+При запуске в GitHub Actions рекурсивный интерпретатор выполняет Sort.lama за ~9m. 
+Реализованный интеративный интерпретатор за ~2.5m. С включенной верификацией за ~2m.
 
-https://github.com/deevroman/Lama/actions/runs/22417727064/job/64907573924
 ```
 ./run-performance-test.sh
 Sort.lama
 Running Lama interpreter...
 
-real	9m11.526s
-user	9m10.248s
-sys	0m1.214s
+real	9m19.559s
+user	9m18.618s
+sys	0m0.881s
 
 Running bytecode interpreter...
 
-real	2m58.768s
-user	2m53.716s
-sys	0m4.137s
+real	2m32.642s
+user	2m27.699s
+sys	0m4.687s
+
+Running bytecode interpreter with verifier...
+
+real	2m0.685s
+user	1m54.101s
+sys	0m3.327s
+
 ```

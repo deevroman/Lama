@@ -3,6 +3,7 @@
 LAMAC=$PWD/../src/lamac
 RUNTIME_DIR=$PWD/../runtime
 INTERPRETER=$PWD/cmake-build-debug/lama_interp
+INTERPRETER_VERIFY=$PWD/cmake-build-debug/lama_interp_verify
 TESTS_DIR=$PWD/tests/performance
 
 cd $TESTS_DIR
@@ -24,6 +25,9 @@ for testfile in $TESTS_DIR/*.lama; do
     echo ""
     echo "Running bytecode interpreter..."
     time timeout 600 $INTERPRETER $bytecode_file <tmp_input 2>&1
+    echo ""
+    echo "Running bytecode interpreter with verifier..."
+    time timeout 600 $INTERPRETER_VERIFY $bytecode_file <tmp_input 2>&1
 done
 
 rm -f tmp_input

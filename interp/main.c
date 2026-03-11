@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "loader.h"
 #include "interpreter.h"
+#include "verifier.h"
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
@@ -16,6 +17,12 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Failed to load bytecode\n");
     return 1;
   }
+
+#ifdef VERIFY_BYTECODE
+  DEBUG_LOG("Calling verify_bytecode...\n");
+  verify_bytecode(bytecode_file);
+  DEBUG_LOG("verify_bytecode finished\n");
+#endif
 
   DEBUG_LOG("Calling interpret_bytecode...\n");
   interpret_bytecode(bytecode_file);

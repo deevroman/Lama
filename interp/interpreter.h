@@ -109,7 +109,32 @@ static const char* opcode_names[256] = {
 };
 
 static const int opcode_args_count[256] = {
-#define X(code, name, func, args_bytes) [code] = args_bytes,
+#define X(code, name, func, args_bytes, ...) [code] = args_bytes,
+#include "opcodes.inc"
+};
+
+static const char* opcode_disasm_text[256] = {
+#define X(code, name, func, args_bytes, disasm_text, ...) [code] = disasm_text,
+#include "opcodes.inc"
+};
+
+static const int opcode_disasm_mode[256] = {
+#define X(code, name, func, args_bytes, disasm_text, disasm_mode, ...) [code] = disasm_mode,
+#include "opcodes.inc"
+};
+
+static const int opcode_stack_pop[256] = {
+#define X(code, name, func, args_bytes, disasm_text, disasm_mode, stack_pop, ...) [code] = stack_pop,
+#include "opcodes.inc"
+};
+
+static const int opcode_stack_push[256] = {
+#define X(code, name, func, args_bytes, disasm_text, disasm_mode, stack_pop, stack_push, ...) [code] = stack_push,
+#include "opcodes.inc"
+};
+
+static const int opcode_verify_kind[256] = {
+#define X(code, name, func, args_bytes, disasm_text, disasm_mode, stack_pop, stack_push, verify_kind) [code] = verify_kind,
 #include "opcodes.inc"
 };
 

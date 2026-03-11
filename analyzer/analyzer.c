@@ -7,6 +7,7 @@
 
 #include "runtime.h"
 #include "../interp/interpreter.h"
+#include "../interp/disasm_format.h"
 
 static int is_jump(uint8_t op)
 {
@@ -40,48 +41,68 @@ static int is_sequence_break(uint8_t op)
         || op == OPC_FAIL;
 }
 
-static uint32_t instruction_length(uint32_t offset)
+static disasm_context make_context_at(uint32_t offset)
 {
-    char* old_ip = ip;
-    ip = bytecode->code_ptr + offset;
-    opcode_t op = read_byte();
+    disasm_context context = {
+        .code_begin = bytecode->code_ptr,
+        .code_end = bytecode->code_ptr + bytecode->code_size,
+        .ip = bytecode->code_ptr + offset,
+        .string_ptr = bytecode->string_ptr,
+        .stringtab_size = bytecode->data->stringtab_size,
+    };
+    return context;
+}
+
+static uint32_t instruction_args_length(uint32_t offset)
+{
+    const size_t code_size = bytecode->code_size;
+    if (offset >= code_size)
+    {
+        failure("instruction offset out of bytecode range: %u (code_size=%zu)\n", offset, code_size);
+    }
+
+    disasm_context context = make_context_at(offset);
+    const uint8_t op = disasm_read_u8(&context);
 
     DEBUG_LOG("[ANALYZER] instruction_length opcode=0x%02X (%s)\n", op, opcode_names[op]);
 
     if (!opcodes[op])
     {
-        failure("Unknown opcode in instruction_length: 0x%02x\n", op);
+        failure("unknown opcode in instruction_length: 0x%02x\n", op);
     }
-    int args_len = opcode_args_count[op];
-    if (args_len != -1)
+
+    const int args_len = opcode_args_count[op];
+    if (args_len != READ_CUSTOM)
     {
-        DEBUG_LOG("[ANALYZER] -> length=%u\n", args_len);
+        DEBUG_LOG("[ANALYZER] -> args length=%d\n", args_len);
+        return (uint32_t)args_len;
     }
-    else if (op == OPC_CLOSURE)
+
+    switch (opcode_disasm_mode[op])
     {
-        read_uint();
-        uint32_t n = read_uint();
-        args_len = sizeof(uint32_t) * 2 + n * (sizeof(uint32_t) + 1);
-        DEBUG_LOG("[ANALYZER] -> length=%u\n", args_len);
-    }
-    else
+    case DISASM_MODE_CLOSURE:
     {
-        failure("Unknown variable-length instruction with opcode: 0x%02X\n", op);
+        (void)disasm_read_u32(&context);
+        const uint32_t n = disasm_read_u32(&context);
+        const uint32_t len = (uint32_t)(2 * sizeof(uint32_t) + n * (sizeof(uint32_t) + sizeof(uint8_t)));
+        DEBUG_LOG("[ANALYZER] -> args length=%u\n", len);
+        return len;
     }
-    ip = old_ip;
-    return 1 + args_len;
+    default:
+        failure("unsupported variable-length opcode 0x%02X (mode=%d)\n", op, opcode_disasm_mode[op]);
+    }
+}
+
+static uint32_t instruction_length(uint32_t offset)
+{
+    return 1 + instruction_args_length(offset);
 }
 
 static uint32_t get_jump_target(uint32_t offset)
 {
-    unsigned char* old_ip = ip;
-    ip = bytecode->code_ptr + offset;
-
-    read_byte();
-    uint32_t target = read_uint();
-
-    ip = old_ip;
-    return target;
+    disasm_context context = make_context_at(offset);
+    (void)disasm_read_u8(&context);
+    return disasm_read_u32(&context);
 }
 
 static void walk_bytecode(bytefile* bytefile, bool* visited, bool* has_label)
@@ -107,7 +128,6 @@ static void walk_bytecode(bytefile* bytefile, bool* visited, bool* has_label)
     while (sp)
     {
         uint32_t pos = stack[--sp];
-        ip = bytecode->code_ptr + pos;
         DEBUG_LOG("[ANALYZER] pop offset=%u (sp=%u)\n", pos, sp);
         if (visited[pos])
         {
@@ -135,18 +155,18 @@ static void walk_bytecode(bytefile* bytefile, bool* visited, bool* has_label)
         if (!is_terminal(op))
         {
             uint32_t next = pos + len;
-            DEBUG_LOG("[ANALYZER] next=%p\n", next);
+            DEBUG_LOG("[ANALYZER] next=%u\n", next);
             if (next < code_size)
             {
                 if (is_call(op))
                 {
                     has_label[next] = true;
-                    DEBUG_LOG("[ANALYZER] call -> label fallthrough %p\n", next);
+                    DEBUG_LOG("[ANALYZER] call -> label fallthrough %u\n", next);
                 }
                 if (!visited[next])
                 {
                     stack[sp++] = next;
-                    DEBUG_LOG("[ANALYZER] push next %p\n", next);
+                    DEBUG_LOG("[ANALYZER] push next %u\n", next);
                 }
             }
         }
@@ -190,41 +210,23 @@ static uint32_t collect_frequencies(idiom_info_t* idioms, uint32_t count, idiom_
 
 static void print_instruction(uint32_t offset)
 {
-    unsigned char* old_ip = ip;
-    ip = bytecode->code_ptr + offset;
-    opcode_t op = read_byte();
-    const char* name = opcode_names[op];
-    if (!name)
+    disasm_context context = make_context_at(offset);
+    const uint8_t op = disasm_read_u8(&context);
+
+    if (!opcodes[op])
     {
         printf("invalid opcode 0x%02X", op);
         return;
     }
-    printf("%s", name);
-    int args = opcode_args_count[op];
-    if (args == 4)
+
+    const char* disasm_text = opcode_disasm_text[op];
+    if (!disasm_text)
     {
-        if (is_call(op) || is_jump(op))
-        {
-            printf(" %p", read_uint());
-        }
-        else
-        {
-            printf(" %u", read_uint());
-        }
+        printf("%s", opcode_names[op]);
+        return;
     }
-    else if (args == 8)
-    {
-        printf(" %u", read_uint());
-        printf(" %u", read_uint());
-    }
-    else if (args == 0)
-    {
-    }
-    else
-    {
-        failure("unsupported args count %d", args);
-    }
-    ip = old_ip;
+
+    disasm_print(stdout, &context, disasm_text, opcode_disasm_mode[op]);
 }
 
 static void print_idiom(idiom_stat_t idiom)
@@ -245,9 +247,11 @@ static int cmp_idiom_result_desc(const void* a, const void* b)
 
     if (ib->freq > ia->freq) return 1;
     if (ib->freq < ia->freq) return -1;
+    const uint8_t op_a = (uint8_t)bytecode->code_ptr[ia->offset];
+    const uint8_t op_b = (uint8_t)bytecode->code_ptr[ib->offset];
     return strcmp(
-        opcode_names[(bytecode->code_ptr + ia->offset)[0]],
-        opcode_names[(bytecode->code_ptr + ib->offset)[0]]
+        opcode_names[op_a],
+        opcode_names[op_b]
     );
 }
 
